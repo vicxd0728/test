@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>壓力單位轉換器</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="converter" aria-labelledby="converter-title">
+      <h1 id="converter-title">壓力單位轉換器</h1>
+      <p class="description">
+        輸入壓力值與單位，並立即獲得另一種單位的數值。所有詢問會保存於紀錄中，方便再次查閱。
+      </p>
+      <form id="converter-form" class="card" novalidate>
+        <div class="form-row">
+          <label class="form-label" for="pressure-value">壓力值</label>
+          <input
+            id="pressure-value"
+            class="form-input"
+            type="number"
+            step="any"
+            placeholder="例如：101.325"
+            required
+            aria-describedby="error-message"
+          />
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label class="form-label" for="from-unit">原始單位</label>
+            <select id="from-unit" class="form-input">
+              <option value="Pa">帕斯卡 (Pa)</option>
+              <option value="kPa">千帕 (kPa)</option>
+              <option value="MPa">百萬帕 (MPa)</option>
+              <option value="bar">巴 (bar)</option>
+              <option value="atm">標準大氣壓 (atm)</option>
+              <option value="psi">磅力每平方英吋 (psi)</option>
+              <option value="mmHg">毫米汞柱 (mmHg)</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="to-unit">轉換成</label>
+            <select id="to-unit" class="form-input">
+              <option value="kPa">千帕 (kPa)</option>
+              <option value="Pa">帕斯卡 (Pa)</option>
+              <option value="MPa">百萬帕 (MPa)</option>
+              <option value="bar">巴 (bar)</option>
+              <option value="atm">標準大氣壓 (atm)</option>
+              <option value="psi">磅力每平方英吋 (psi)</option>
+              <option value="mmHg">毫米汞柱 (mmHg)</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="primary-button">開始轉換</button>
+        <p id="error-message" class="error-message" role="alert" aria-live="polite"></p>
+      </form>
+
+      <section class="card result" aria-live="polite" aria-labelledby="result-title">
+        <h2 id="result-title">轉換結果</h2>
+        <p id="result-display" class="result-value">尚未進行轉換</p>
+      </section>
+
+      <section class="card history" aria-labelledby="history-title">
+        <div class="history-header">
+          <h2 id="history-title">詢問紀錄</h2>
+          <button type="button" id="clear-history" class="secondary-button">清除紀錄</button>
+        </div>
+        <p class="history-hint">最近 20 筆查詢會保存在此處。</p>
+        <ul id="history-list" class="history-list" aria-live="polite" aria-atomic="false"></ul>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
