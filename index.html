@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>壓力單位轉換器</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <main class="container">
+    <header class="page-header">
+      <h1>壓力單位轉換器</h1>
+      <p class="description">
+        輸入數值並選擇欲轉換的單位，系統會自動換算並記錄每一次的詢問結果。
+      </p>
+    </header>
+
+    <section class="converter" aria-labelledby="converter-title">
+      <h2 id="converter-title">立即換算</h2>
+      <form id="converter-form" class="converter-form">
+        <div class="form-field">
+          <label for="pressure-value">壓力數值</label>
+          <input
+            id="pressure-value"
+            name="pressure-value"
+            type="number"
+            inputmode="decimal"
+            step="any"
+            placeholder="例如 101.325"
+            required
+          />
+        </div>
+
+        <div class="form-field">
+          <label for="from-unit">原始單位</label>
+          <select id="from-unit" name="from-unit"></select>
+        </div>
+
+        <div class="form-field">
+          <label for="to-unit">目標單位</label>
+          <select id="to-unit" name="to-unit"></select>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="primary">開始轉換</button>
+          <button type="reset" class="secondary" id="reset-button">重設</button>
+        </div>
+      </form>
+
+      <div class="feedback">
+        <p id="error-message" class="error-message" role="alert" aria-live="assertive"></p>
+        <output id="result" class="result" role="status" aria-live="polite">
+          請輸入數值以開始轉換。
+        </output>
+      </div>
+    </section>
+
+    <section class="history" aria-labelledby="history-title">
+      <div class="history-header">
+        <h2 id="history-title">詢問紀錄</h2>
+        <button type="button" class="secondary" id="clear-history">清除紀錄</button>
+      </div>
+      <p id="history-empty" class="history-empty">目前尚未有任何轉換紀錄。</p>
+      <div class="history-table-wrapper">
+        <table class="history-table" aria-describedby="history-title">
+          <thead>
+            <tr>
+              <th scope="col">時間</th>
+              <th scope="col">輸入值</th>
+              <th scope="col">換算</th>
+              <th scope="col">結果</th>
+            </tr>
+          </thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
