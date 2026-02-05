@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>火星業務員：奧客攻防戰</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;900&family=Press+Start+2P&display=swap');
+
+        :root {
+            --bg-color: #1a1a2e;
+            --panel-bg: #16213e;
+            --accent-green: #00ff88;
+            --accent-red: #ff4d4d;
+            --accent-yellow: #f9d71c;
+            --text-color: #e94560;
+        }
+
+        body {
+            margin: 0;
+            background-color: #000;
+            color: white;
+            font-family: 'Noto Sans TC', sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #game-boy {
+            width: 100%;
+            max-width: 480px;
+            height: 100%;
+            max-height: 800px;
+            background: var(--bg-color);
+            position: relative;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 2px solid #333;
+        }
+
+        /* --- 戰鬥畫面 --- */
+        .battle-stage {
+            flex: 2;
+            background: linear-gradient(180deg, #2c3e50 0%, #000000 100%);
+            position: relative;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* 敵人區 */
+        .enemy-zone {
+            text-align: center;
+            margin-top: 20px;
+            position: relative;
+        }
+
+        .enemy-sprite {
+            font-size: 100px;
+            filter: drop-shadow(0 10px 10px rgba(0,0,0,0.5));
+            animation: float 3s ease-in-out infinite;
+            display: inline-block;
+        }
+
+        .enemy-speech {
+            position: absolute;
+            top: -20px;
+            right: 10px;
+            background: #fff;
+            color: #000;
+            padding: 10px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            max-width: 150px;
+            box-shadow: 2px 2px 0 #000;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .enemy-speech.show { opacity: 1; transform: scale(1); }
+        .enemy-speech::after {
+            content: ''; position: absolute; bottom: -10px; left: 20px;
+            border-width: 10px 10px 0; border-style: solid;
+            border-color: #fff transparent; display: block; width: 0;
+        }
+
+        /* 玩家區 */
+        .player-zone {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            padding-bottom: 10px;
+        }
+
+        .player-sprite {
+            font-size: 80px;
+            transform: scaleX(-1); /* 面對右邊 */
+            filter: drop-shadow(0 5px 5px rgba(0,255,136,0.3));
+        }
+
+        /* 狀態條 (血條) */
+        .status-box {
+            background: rgba(0,0,0,0.6);
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #555;
+            width: 45%;
+        }
+        
+        .name-tag { font-size: 14px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;}
+        
+        .bar-container {
+            width: 100%; height: 12px;
+            background: #333; border-radius: 6px; overflow: hidden;
+            border: 1px solid #fff;
+        }
+        .bar-fill { height: 100%; width: 100%; transition: width 0.3s; }
+        
+        .hp-bar { background: linear-gradient(90deg, #ff4d4d, #ff0000); }
+        .sanity-bar { background: linear-gradient(90deg, #00f3ff, #0066ff); } /* 玩家理智線 */
+        .shield-bar { height: 4px; background: #f9d71c; width: 0%; margin-top: 2px; }
+
+        /* --- 控制面板 --- */
+        .control-panel {
+            flex: 1.5;
+            background: var(--panel-bg);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            border-top: 4px solid #000;
+        }
+
+        /* 訊息視窗 */
+        .message-log {
+            background: #000;
+            color: #00ff88;
+            font-family: 'Noto Sans TC', monospace;
+            padding: 10px;
+            height: 60px;
+            border-radius: 5px;
+            border: 2px solid #444;
+            margin-bottom: 10px;
+            font-size: 14px;
+            line-height: 1.4;
+            overflow: hidden;
+        }
+
+        /* 技能按鈕區 */
+        .skill-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .skill-btn {
+            background: #2a2a2a;
+            color: #fff;
+            border: none;
+            border-bottom: 4px solid #111;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.1s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .skill-btn:active:not(:disabled) {
+            transform: translateY(4px);
+            border-bottom-width: 0;
+        }
+
+        .skill-btn:disabled {
+            opacity: 0.5;
+            filter: grayscale(1);
+            cursor: not-allowed;
+        }
+
+        .skill-cost {
+            font-size: 10px;
+            color: var(--accent-yellow);
+            margin-top: 4px;
+        }
+
+        /* AP 點數 */
+        .ap-display {
+            position: absolute;
+            top: -15px; left: 50%; transform: translateX(-50%);
+            background: #000;
+            color: var(--accent-yellow);
+            padding: 5px 15px;
+            border-radius: 20px;
+            border: 2px solid var(--accent-yellow);
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.5);
+        }
+
+        /* --- 視覺特效 --- */
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        
+        .damage-text {
+            position: absolute;
+            font-weight: 900;
+            font-size: 30px;
+            color: #ff0000;
+            text-shadow: 2px 2px 0 #fff;
+            animation: popUp 0.8s forwards;
+            pointer-events: none;
+            z-index: 20;
+        }
+        @keyframes popUp { 0% { transform: translateY(0) scale(0.5); opacity: 0; } 20% { transform: translateY(-20px) scale(1.5); opacity: 1; } 100% { transform: translateY(-50px) scale(1); opacity: 0; } }
+
+        .shake-screen { animation: shake 0.3s; }
+        @keyframes shake { 0% { transform: translate(0,0); } 25% { transform: translate(-5px, 5px); } 75% { transform: translate(5px, -5px); } 100% { transform: translate(0,0); } }
+
+        /* 全螢幕遮罩 (開始/結束/升級) */
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .hidden { display: none; }
+
+        h1 { font-size: 32px; margin-bottom: 10px; color: var(--accent-green); }
+        .btn-main {
+            background: var(--accent-red); color: white; border: none; padding: 15px 40px;
+            font-size: 20px; font-weight: bold; border-radius: 50px; cursor: pointer;
+            margin-top: 20px; box-shadow: 0 0 20px rgba(255, 77, 77, 0.5);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        .card-container { display: grid; gap: 10px; width: 100%; }
+        .upgrade-card {
+            background: #222; border: 2px solid #444; padding: 15px; border-radius: 10px;
+            cursor: pointer; text-align: left; transition: all 0.2s;
+        }
+        .upgrade-card:hover { border-color: var(--accent-green); background: #333; }
+        .card-title { color: var(--accent-green); font-weight: bold; font-size: 16px; margin-bottom: 5px; }
+        .card-desc { color: #aaa; font-size: 12px; }
+
+    </style>
+</head>
+<body>
+
+<div id="game-boy">
+    
+    <!-- 戰鬥區域 -->
+    <div class="battle-stage" id="battleStage">
+        <!-- 敵人區 -->
+        <div class="enemy-zone">
+            <div id="enemyBubble" class="enemy-speech">太貴了！算便宜點！</div>
+            <div id="enemySprite" class="enemy-sprite">👿</div>
+            <div style="position:absolute; bottom: -60px; right: 0; width: 100%;">
+                <div class="status-box" style="margin: 0 auto;">
+                    <div class="name-tag">
+                        <span id="enemyName">奧客</span>
+                        <span id="enemyHpText">100/100</span>
+                    </div>
+                    <div class="bar-container"><div id="enemyHpBar" class="bar-fill hp-bar"></div></div>
+                    <div style="text-align:right; font-size:10px; color:#aaa; margin-top:2px;">(防備心)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 玩家區 -->
+        <div class="player-zone">
+            <div class="status-box">
+                <div class="name-tag">
+                    <span>👽 我方業務</span>
+                    <span id="playerHpText">100/100</span>
+                </div>
+                <div class="bar-container"><div id="playerHpBar" class="bar-fill sanity-bar"></div></div>
+                <div id="playerShieldBar" class="shield-bar"></div>
+                <div style="text-align:left; font-size:10px; color:#aaa; margin-top:2px;">(理智線)</div>
+            </div>
+            <div class="player-sprite" id="playerSprite">👽</div>
+        </div>
+    </div>
+
+    <!-- 控制面板 -->
+    <div class="control-panel">
+        <div class="ap-display">⚡ AP: <span id="playerAp">3</span>/3</div>
+        <div class="message-log" id="msgLog">戰鬥開始！奧客出現了！</div>
+        
+        <div class="skill-grid" id="skillGrid">
+            <button class="skill-btn" onclick="useSkill('attack')">
+                🔥 強力推銷
+                <span class="skill-cost">1 AP | 攻 15-20</span>
+            </button>
+            <button class="skill-btn" onclick="useSkill('defend')">
+                🛡️ 敷衍假笑
+                <span class="skill-cost">1 AP | 防 +15</span>
+            </button>
+            <button class="skill-btn" onclick="useSkill('heal')">
+                ☕ 喝咖啡摸魚
+                <span class="skill-cost">2 AP | 回血 +25</span>
+            </button>
+            <button class="skill-btn" onclick="useSkill('ultimate')">
+                💎 跳樓大拍賣
+                <span class="skill-cost">3 AP | 攻 40+</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 介面遮罩 -->
+    <!-- 1. 開始畫面 -->
+    <div id="startScreen" class="overlay">
+        <h1>火星業務員<br>奧客攻防戰</h1>
+        <div style="font-size:60px; margin:20px;">👽 vs 👹</div>
+        <p style="color:#ccc; font-size:14px; line-height:1.6;">
+            目標：賺夠 1000 萬火星幣買票回家。<br>
+            玩法：打破奧客的「防備心」簽下訂單。<br>
+            注意：你的「理智線」歸零就離職了！
+        </p>
+        <button class="btn-main" onclick="startGame()">開始接單</button>
+    </div>
+
+    <!-- 2. 升級畫面 -->
+    <div id="upgradeScreen" class="overlay hidden">
+        <h1 style="color:#f9d71c">簽約成功！</h1>
+        <p style="color:#fff; margin-bottom:20px;">獲得業績獎金，請選擇強化項目：</p>
+        <div class="card-container">
+            <div class="upgrade-card" onclick="applyUpgrade('atk')">
+                <div class="card-title">🔥 話術升級</div>
+                <div class="card-desc">推銷傷害 +5 (基礎攻擊力提升)</div>
+            </div>
+            <div class="upgrade-card" onclick="applyUpgrade('hp')">
+                <div class="card-title">🧠 強化玻璃心</div>
+                <div class="card-desc">理智上限 +20 & 回滿血</div>
+            </div>
+            <div class="upgrade-card" onclick="applyUpgrade('ap')">
+                <div class="card-title">⚡ 能量飲料</div>
+                <div class="card-desc">戰鬥開始時額外獲得 1 AP</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 結束畫面 -->
+    <div id="endScreen" class="overlay hidden">
+        <h1 id="endTitle" style="color:#ff4d4d">你離職了...</h1>
+        <p id="endReason" style="color:#ccc">理智線斷裂</p>
+        <div style="font-size:40px; margin:20px;">💀</div>
+        <button class="btn-main" onclick="resetGame()">重新面試</button>
+    </div>
+
+    <!-- 4. 全破畫面 -->
+    <div id="victoryScreen" class="overlay hidden">
+        <h1 style="color:#00ff88">光榮返鄉！</h1>
+        <p>你成為了傳說中的金牌業務！<br>火星飛船已經準備好起飛了。</p>
+        <div style="font-size:60px; margin:20px;">🚀</div>
+        <button class="btn-main" onclick="resetGame()">再次挑戰</button>
+    </div>
+
+</div>
+
+<script>
+    /**
+     * 遊戲核心邏輯
+     */
+    
+    // 遊戲狀態
+    const state = {
+        level: 1,
+        maxLevels: 5,
+        turn: 'PLAYER', // PLAYER, ENEMY
+        ap: 3,
+        maxAp: 3,
+        shield: 0,
+        playerStats: {
+            hp: 100,
+            maxHp: 100,
+            atkBase: 0,
+            startAp: 0
+        },
+        enemy: null
+    };
+
+    // 敵人資料庫
+    const enemyDatabase = [
+        { name: "菜鳥實習生", hp: 60, atk: 8, icon: "🤓", quotes: ["我沒錢...", "我要問主管...", "真的有優惠嗎？"] },
+        { name: "斤斤計較大嬸", hp: 100, atk: 12, icon: "👵", quotes: ["隔壁比較便宜耶", "送個贈品啦", "我不買了喔！"] },
+        { name: "暴躁總經理", hp: 150, atk: 18, icon: "😠", quotes: ["我很忙！快點！", "叫你經理出來！", "這什麼爛提案！"] },
+        { name: "冷漠富二代", hp: 200, atk: 15, icon: "😎", quotes: ["喔。", "沒興趣。", "所以呢？"] },
+        { name: "終極奧客王", hp: 300, atk: 25, icon: "👹", quotes: ["我要客訴你！", "去死吧業務員！", "毀滅你的業績！"] }
+    ];
+
+    // UI 綁定
+    const ui = {
+        playerHpBar: document.getElementById('playerHpBar'),
+        playerHpText: document.getElementById('playerHpText'),
+        playerShieldBar: document.getElementById('playerShieldBar'),
+        enemyHpBar: document.getElementById('enemyHpBar'),
+        enemyHpText: document.getElementById('enemyHpText'),
+        enemyName: document.getElementById('enemyName'),
+        enemySprite: document.getElementById('enemySprite'),
+        enemyBubble: document.getElementById('enemyBubble'),
+        msgLog: document.getElementById('msgLog'),
+        apText: document.getElementById('playerAp'),
+        skillBtns: document.querySelectorAll('.skill-btn'),
+        gameBoy: document.getElementById('game-boy'),
+        
+        startScreen: document.getElementById('startScreen'),
+        upgradeScreen: document.getElementById('upgradeScreen'),
+        endScreen: document.getElementById('endScreen'),
+        victoryScreen: document.getElementById('victoryScreen')
+    };
+
+    /* --- 系統功能 --- */
+
+    function log(msg, color="#fff") {
+        ui.msgLog.innerHTML = `<span style="color:${color}">${msg}</span>`;
+        // 簡單的打字機效果重置
+        ui.msgLog.style.animation = 'none';
+        ui.msgLog.offsetHeight; /* trigger reflow */
+        ui.msgLog.style.animation = 'fadeIn 0.2s';
+    }
+
+    function updateUI() {
+        // Player
+        const hpPct = (state.playerStats.hp / state.playerStats.maxHp) * 100;
+        ui.playerHpBar.style.width = `${Math.max(0, hpPct)}%`;
+        ui.playerHpText.innerText = `${state.playerStats.hp}/${state.playerStats.maxHp}`;
+        
+        const shieldPct = Math.min(100, state.shield); // 護盾示意
+        ui.playerShieldBar.style.width = `${shieldPct}%`;
+
+        ui.apText.innerText = state.ap;
+
+        // Enemy
+        if(state.enemy) {
+            const eHPPct = (state.enemy.hp / state.enemy.maxHp) * 100;
+            ui.enemyHpBar.style.width = `${Math.max(0, eHPPct)}%`;
+            ui.enemyHpText.innerText = `${state.enemy.hp}/${state.enemy.maxHp}`;
+        }
+
+        // Buttons
+        const costs = [1, 1, 2, 3]; // 對應四個按鈕的消耗
+        ui.skillBtns.forEach((btn, idx) => {
+            btn.disabled = (state.turn !== 'PLAYER' || state.ap < costs[idx]);
+        });
+    }
+
+    function spawnFloatingText(text, isCrit, targetSelector) {
+        const el = document.createElement('div');
+        el.className = 'damage-text';
+        el.innerText = text;
+        el.style.color = isCrit ? '#ff0000' : '#fff';
+        if(!isCrit) el.style.fontSize = '24px';
+        
+        const target = document.querySelector(targetSelector);
+        const rect = target.getBoundingClientRect();
+        const containerRect = ui.gameBoy.getBoundingClientRect();
+        
+        el.style.left = (rect.left - containerRect.left + rect.width/2 - 20) + 'px';
+        el.style.top = (rect.top - containerRect.top) + 'px';
+        
+        ui.gameBoy.appendChild(el);
+        setTimeout(() => el.remove(), 800);
+    }
+
+    function shakeScreen() {
+        ui.gameBoy.classList.add('shake-screen');
+        setTimeout(() => ui.gameBoy.classList.remove('shake-screen'), 300);
+    }
+
+    /* --- 遊戲流程 --- */
+
+    function startGame() {
+        ui.startScreen.classList.add('hidden');
+        resetPlayerStats();
+        loadLevel(1);
+    }
+
+    function resetPlayerStats() {
+        state.playerStats = { hp: 100, maxHp: 100, atkBase: 0, startAp: 0 };
+    }
+
+    function loadLevel(lvl) {
+        state.level = lvl;
+        state.ap = 3 + state.playerStats.startAp;
+        state.shield = 0;
+        state.turn = 'PLAYER';
+
+        // 載入敵人
+        const data = enemyDatabase[lvl - 1];
+        state.enemy = {
+            ...data,
+            maxHp: data.hp
+        };
+
+        // UI 初始化
+        ui.enemyName.innerText = `LV${lvl} ${state.enemy.name}`;
+        ui.enemySprite.innerText = state.enemy.icon;
+        
+        updateUI();
+        log(`遭遇了 ${state.enemy.name}！`, "#00f3ff");
+    }
+
+    /* --- 玩家回合 --- */
+
+    function useSkill(type) {
+        if(state.turn !== 'PLAYER') return;
+
+        let cost = 0;
+        let msg = "";
+        let dmg = 0;
+
+        if (type === 'attack') {
+            cost = 1;
+            dmg = Math.floor(Math.random() * 6) + 15 + state.playerStats.atkBase; // 15-20
+            state.enemy.hp -= dmg;
+            msg = `你使用了強力推銷！造成 ${dmg} 點說服力！`;
+            spawnFloatingText(`-${dmg}`, false, '#enemySprite');
+            
+            // 動畫
+            ui.enemySprite.style.transform = "scale(0.9)";
+            setTimeout(()=>ui.enemySprite.style.transform = "scale(1)", 100);
+        } 
+        else if (type === 'defend') {
+            cost = 1;
+            state.shield += 15;
+            msg = `你假笑敷衍！獲得 15 點忍耐護盾。`;
+            spawnFloatingText(`+15 盾`, false, '#playerSprite');
+        }
+        else if (type === 'heal') {
+            cost = 2;
+            const heal = 25;
+            state.playerStats.hp = Math.min(state.playerStats.maxHp, state.playerStats.hp + heal);
+            msg = `你喝了口咖啡，理智恢復 ${heal} 點！`;
+            spawnFloatingText(`+${heal}`, false, '#playerSprite');
+        }
+        else if (type === 'ultimate') {
+            cost = 3;
+            dmg = Math.floor(Math.random() * 20) + 40 + state.playerStats.atkBase; // 40-60
+            state.enemy.hp -= dmg;
+            msg = `祭出跳樓大拍賣！造成 ${dmg} 點爆擊傷害！`;
+            spawnFloatingText(`CRITICAL -${dmg}`, true, '#enemySprite');
+            shakeScreen();
+        }
+
+        state.ap -= cost;
+        updateUI();
+        log(msg);
+
+        if (state.enemy.hp <= 0) {
+            state.enemy.hp = 0;
+            updateUI();
+            setTimeout(winBattle, 1000);
+        } else {
+            // 檢查是否還有 AP，若無則切換回合
+            // 為了簡化，這裡設定每次行動後延遲一下，如果玩家按了結束回合按鈕 (這裡簡化為自動判定或可以連續行動)
+            // 為了策略性，讓玩家可以連續行動直到沒 AP，然後自動換敵人
+            // 但為了節奏感，這裡設計：行動後，檢查是否要換人? 不，讓玩家自己決定順序，直到沒AP
+            // 修正邏輯：如果 AP 歸零，自動換敵人。如果還有 AP，玩家可繼續。
+            
+            if (state.ap <= 0) {
+                state.turn = 'ENEMY_WAIT'; // 防止連點
+                setTimeout(enemyTurn, 1000);
+            }
+        }
+    }
+
+    /* --- 敵人回合 --- */
+
+    function enemyTurn() {
+        state.turn = 'ENEMY';
+        log(`${state.enemy.name} 正在思考刁難你的理由...`, "#ff4d4d");
+
+        // 隨機說話
+        const quote = state.enemy.quotes[Math.floor(Math.random() * state.enemy.quotes.length)];
+        ui.enemyBubble.innerText = quote;
+        ui.enemyBubble.classList.add('show');
+
+        setTimeout(() => {
+            ui.enemyBubble.classList.remove('show');
+            
+            // 攻擊計算
+            let dmg = state.enemy.atk + Math.floor(Math.random() * 5); // 浮動傷害
+            
+            // 護盾抵擋
+            if (state.shield > 0) {
+                if (state.shield >= dmg) {
+                    state.shield -= dmg;
+                    dmg = 0;
+                    log("你的假笑完全防禦了奧客的攻擊！", "#f9d71c");
+                } else {
+                    dmg -= state.shield;
+                    state.shield = 0;
+                    log("護盾破裂！你受到了精神傷害！", "#ff4d4d");
+                }
+            } else {
+                log(`奧客發動言語攻擊！理智 -${dmg}`, "#ff4d4d");
+            }
+
+            if (dmg > 0) {
+                state.playerStats.hp -= dmg;
+                spawnFloatingText(`-${dmg}`, true, '#playerSprite');
+                shakeScreen();
+            }
+
+            updateUI();
+
+            if (state.playerStats.hp <= 0) {
+                setTimeout(loseBattle, 1000);
+            } else {
+                // 回到玩家回合
+                setTimeout(() => {
+                    state.turn = 'PLAYER';
+                    state.ap = Math.min(state.maxAp, state.ap + 3 + state.playerStats.startAp); // 每回合回滿 3 AP
+                    // state.shield = 0; // 護盾是否保留？保留比較好玩
+                    log("輪到你了！請選擇對策。", "#00ff88");
+                    updateUI();
+                }, 1000);
+            }
+
+        }, 1500);
+    }
+
+    /* --- 結算 --- */
+
+    function winBattle() {
+        if (state.level >= state.maxLevels) {
+            ui.victoryScreen.classList.remove('hidden');
+        } else {
+            ui.upgradeScreen.classList.remove('hidden');
+        }
+    }
+
+    function loseBattle() {
+        ui.endScreen.classList.remove('hidden');
+    }
+
+    function applyUpgrade(type) {
+        if (type === 'atk') {
+            state.playerStats.atkBase += 5;
+        } else if (type === 'hp') {
+            state.playerStats.maxHp += 20;
+            state.playerStats.hp = state.playerStats.maxHp; // 補滿
+        } else if (type === 'ap') {
+            state.playerStats.startAp += 1;
+        }
+        
+        ui.upgradeScreen.classList.add('hidden');
+        loadLevel(state.level + 1);
+    }
+
+    function resetGame() {
+        ui.endScreen.classList.add('hidden');
+        ui.victoryScreen.classList.add('hidden');
+        startGame();
+    }
+
+</script>
+</body>
+</html>
